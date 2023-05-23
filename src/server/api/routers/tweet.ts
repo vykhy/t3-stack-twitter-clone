@@ -64,6 +64,10 @@ export const tweetRouter = createTRPCRouter({
       const tweet = await ctx.prisma.tweet.create({
         data: { content, userId: ctx.session.user.id },
       });
+
+      //Revalidate profile page
+      void ctx.revalidateSSG?.(`/profiles/${ctx.session.user.id}`);
+
       return tweet;
     }),
   toggleLike: protectedProcedure

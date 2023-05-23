@@ -13,6 +13,8 @@ import IconHoverEffect from "~/components/IconHoverEffect";
 import { VscArrowLeft } from "react-icons/vsc";
 import ProfileImage from "~/components/ProfileImage";
 import InfiniteTweetsList from "~/components/InfiniteTweetsList";
+import { useSession } from "next-auth/react";
+import Button from "~/components/Button";
 
 const pluralRules = new Intl.PluralRules();
 function getPlural(number: number, singular: string, plural: string) {
@@ -28,6 +30,22 @@ const ProfilePage: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
     { userId: id },
     { getNextPageParam: (lastPage) => lastPage.nextCursor }
   );
+  const trpcUtils = api.useContext();
+  const toggleFollow = api.profile.toggleFollow.useMutation({
+    onSuccess: ({ addedFollow }) => {
+      trpcUtils.profile.getById.setData({ id }, (oldData) => {
+        if (oldData == null) return;
+
+        const countModifier = addedFollow ? 1 : -1;
+
+        return {
+          ...oldData,
+          isFollowing: addedFollow,
+          followersCount: oldData.followersCount + countModifier,
+        };
+      });
+    },
+  });
 
   if (profile == null || profile.name == null)
     return <ErrorPage statusCode={404} />;
@@ -56,8 +74,11 @@ const ProfilePage: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
         </div>
         <FollowButton
           isFollowing={profile.isFollowing}
+          isLoading={toggleFollow.isLoading}
           userId={id}
-          onClick={() => {}}
+          onClick={() => {
+            toggleFollow.mutate({ userId: id });
+          }}
         />
       </header>
       <main>
@@ -73,8 +94,26 @@ const ProfilePage: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
   );
 };
 
-function FollowButton() {
-  return <button>Follow</button>;
+function FollowButton({
+  userId,
+  isFollowing,
+  onClick,
+  isLoading,
+}: {
+  userId: string;
+  isFollowing: boolean;
+  isLoading: boolean;
+  onClick: () => void;
+}) {
+  const session = useSession();
+  if (session.status !== "authenticated" || session.data.user.id === userId)
+    return null;
+
+  return (
+    <Button disabled={isLoading} onClick={onClick} small gray={isFollowing}>
+      {isFollowing ? "Unfollow" : "Follow"}
+    </Button>
+  );
 }
 
 export const getStaticPaths: GetStaticPaths = () => {
