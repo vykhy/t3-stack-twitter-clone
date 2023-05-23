@@ -1,5 +1,10 @@
+import Link from "next/link";
 import React from "react";
 import InfiniteScroll from "react-infinite-scroll-component";
+import ProfileImage from "./ProfileImage";
+import { useSession } from "next-auth/react";
+import { VscHeartFilled, VscHeart } from "react-icons/vsc";
+import IconHoverEffect from "./IconHoverEffect";
 
 type Tweet = {
   id: string;
@@ -45,12 +50,89 @@ function InfiniteTweetsList({
         hasMore={hasMore}
         loader="Loading..."
       >
-        {tweets.map((tweet) => {
-          return <div key={tweet.id}>{tweet.content} </div>;
-        })}
+        {tweets.map((tweet) => (
+          <TweetCard {...tweet} />
+        ))}
       </InfiniteScroll>
     </ul>
   );
 }
 
 export default InfiniteTweetsList;
+
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "short",
+});
+
+function TweetCard({
+  id,
+  user,
+  content,
+  createdAt,
+  likeCount,
+  likedByMe,
+}: Tweet) {
+  return (
+    <li className="flex-gap flex border-b px-4 py-4">
+      <Link href={`/profiles/${user.id}`}>
+        <ProfileImage src={user.image} />
+      </Link>
+      <div className="flex flex-grow flex-col">
+        <div className="flex gap-1">
+          <Link
+            href={`/profiles/${user.id}`}
+            className="font-bold hover:underline focus-visible:underline"
+          >
+            {user.name}
+          </Link>
+          <span className="text-gray-500">-</span>
+          <span className="text-gray-500">
+            {dateTimeFormatter.format(createdAt)}
+          </span>
+        </div>
+        <p className="whitespace-pre-wrap">{content} </p>
+        <HeartButton likedByMe={likedByMe} likeCount={likeCount} />
+      </div>
+    </li>
+  );
+}
+
+type HeartButtonProps = {
+  likedByMe: boolean;
+  likeCount: number;
+};
+
+function HeartButton({ likedByMe, likeCount }: HeartButtonProps) {
+  const session = useSession();
+  const HeartIcon = likedByMe ? VscHeartFilled : VscHeart;
+
+  if (session.status !== "authenticated") {
+    return (
+      <div className="mb-1 mt-1 flex items-center gap-3 self-start text-gray-500">
+        <HeartIcon />
+        <span>{likeCount}</span>
+      </div>
+    );
+  }
+  return (
+    <button
+      className={`group -ml-2 flex items-center gap-1 transition-colors duration-200 ${
+        likedByMe
+          ? "text-red-500"
+          : "text-gray-500 hover:text-red-500 focus-visible:text-red-500"
+      }`}
+    >
+      <IconHoverEffect red>
+        <HeartIcon
+          className={`transition-colors duration-200 ${
+            likedByMe
+              ? "fill-red-500"
+              : "fill-gray-500 group-hover:fill-red-500 group-focus-visible:fill-red-500"
+          }`}
+        />
+      </IconHoverEffect>
+
+      <span>{likeCount}</span>
+    </button>
+  );
+}
